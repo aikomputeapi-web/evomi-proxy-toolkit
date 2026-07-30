@@ -391,6 +391,9 @@ footer {
   outline: none;
   border-color: var(--accent);
 }
+.evomi-wide {
+  grid-column: 1 / -1;
+}
 .evomi #evomiFetch {
   width: 100%;
 }

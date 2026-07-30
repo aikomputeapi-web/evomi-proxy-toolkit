@@ -541,14 +541,29 @@ async function initEvomi() {
 }
 
 function readEvomiOpts() {
+  const session = els.evomiSession.value;
   return {
     product: els.evomiProduct.value,
-    session: els.evomiSession.value,
+    session: session,
     country: els.evomiCountry.value.trim(),
     city: els.evomiCity.value.trim(),
-    lifetime: els.evomiLifetime.value.trim(),
+    // Lifetime only applies to sticky sessions; omit it for rotating.
+    lifetime: session === "sticky" ? els.evomiLifetime.value.trim() : "",
     amount: parseInt(els.evomiAmount.value, 10) || 1
   };
+}
+
+// Prefilled text fields clear when focused and restore their default if left
+// blank — so a click gives you an empty field to type in, per field.
+function wireEvomiDefaults() {
+  els.evomiPanel.querySelectorAll("input[data-default]").forEach((el) => {
+    el.addEventListener("focus", () => {
+      if (el.value === el.dataset.default) el.value = "";
+    });
+    el.addEventListener("blur", () => {
+      if (el.value.trim() === "") el.value = el.dataset.default;
+    });
+  });
 }
 
 async function fetchFromEvomi() {
@@ -599,3 +614,4 @@ els.importFile.addEventListener("change", handleImportFile);
 
 render();
 initEvomi();
+wireEvomiDefaults();

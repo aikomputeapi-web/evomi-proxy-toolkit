@@ -20,8 +20,29 @@
     rp: "rp", // Premium Residential
     mp: "mp", // Mobile
     dc: "sdc", // Datacenter (shared)
-    static: "static-residential" // Static Residential (ISP)
+    static: "static_residential" // Static Residential (ISP)
   };
+
+  // Evomi returns validation failures as a JSON object (a ZodError), not a
+  // string, so pull out a human-readable message rather than "[object Object]".
+  function extractError(j) {
+    var e = j && j.error != null ? j.error : j;
+    if (typeof e === "string") return e;
+    if (e && Array.isArray(e.issues) && e.issues.length) {
+      return e.issues
+        .map(function (i) {
+          var p = i.path && i.path.length ? i.path.join(".") + ": " : "";
+          return p + (i.message || "invalid");
+        })
+        .join("; ");
+    }
+    if (e && typeof e.message === "string") return e.message;
+    try {
+      return JSON.stringify(e);
+    } catch (x) {
+      return String(e);
+    }
+  }
 
   async function fetchEvomiProxies(apiKey, opts) {
     opts = opts || {};
@@ -49,7 +70,8 @@
 
     var text = (await resp.text()).trim();
 
-    // Errors may come back as HTTP 4xx or as a 200 with a JSON error body.
+    // Errors may come back as HTTP 4xx or as a 200 with a JSON error body
+    // (either {"error":"..."} or a nested {"error":{ZodError}}).
     if (text.startsWith("{")) {
       var j = null;
       try {
@@ -57,7 +79,9 @@
       } catch (e) {
         j = null;
       }
-      if (j && j.error) throw new Error(j.error);
+      if (j && (j.success === false || j.error)) {
+        throw new Error(extractError(j));
+      }
     }
     if (!resp.ok) {
       throw new Error("Evomi API error " + resp.status);

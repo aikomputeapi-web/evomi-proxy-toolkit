@@ -37,8 +37,8 @@ PRODUCTS = {
     "mp": "mp",                       # Mobile
     "dc": "sdc",                      # Datacenter (shared)
     "sdc": "sdc",
-    "static": "static-residential",   # Static Residential (ISP)
-    "static-residential": "static-residential",
+    "static": "static_residential",   # Static Residential (ISP)
+    "static-residential": "static_residential",
 }
 
 CONFIG_PATH = os.path.join(
@@ -118,12 +118,39 @@ def call_generate(api_key: str, params: dict[str, str]) -> str:
             return resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace").strip()
+        detail = extract_api_error(body) if body else ""
         raise SystemExit(
             f"Evomi API error {exc.code} {exc.reason}"
-            + (f"\n{body}" if body else "")
+            + (f": {detail}" if detail else "")
         )
     except urllib.error.URLError as exc:
         raise SystemExit(f"Network error reaching Evomi API: {exc.reason}")
+
+
+def extract_api_error(raw: str) -> str:
+    """Pull a readable message out of an Evomi JSON error body.
+
+    Validation failures arrive as a nested ZodError object, e.g.
+    {"success": false, "error": {"issues": [{"path": [...], "message": "..."}]}}.
+    """
+    try:
+        err = json.loads(raw).get("error", raw)
+    except (json.JSONDecodeError, AttributeError):
+        return raw.strip()
+    if isinstance(err, str):
+        return err
+    if isinstance(err, dict):
+        issues = err.get("issues")
+        if isinstance(issues, list) and issues:
+            parts = []
+            for i in issues:
+                path = ".".join(str(p) for p in i.get("path", []))
+                msg = i.get("message", "invalid")
+                parts.append(f"{path}: {msg}" if path else msg)
+            return "; ".join(parts)
+        if isinstance(err.get("message"), str):
+            return err["message"]
+    return json.dumps(err)
 
 
 def resolve_host_to_ip(line: str) -> str:
@@ -174,11 +201,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
     # /generate returns plain-text proxy lines on success, but a JSON object
     # like {"error": "Not enough balance"} on failure (still HTTP 200).
     if raw.startswith("{"):
-        try:
-            err = json.loads(raw).get("error")
-        except json.JSONDecodeError:
-            err = None
-        print(f"Evomi refused the request: {err or raw}", file=sys.stderr)
+        print(f"Evomi refused the request: {extract_api_error(raw)}", file=sys.stderr)
         return 1
 
     lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]

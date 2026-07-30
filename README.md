@@ -6,11 +6,10 @@ proxy strings, plus a **Chrome/Firefox browser extension** that can fetch those
 proxies from the Evomi API and apply them to your browser in two clicks.
 
 Both talk to the official [Evomi Public API](https://docs.evomi.com/public-api/)
-using your own API key. Nothing is hardcoded and no credentials ship with this
-repo — you bring your own key.
+using your API key, which can be found in your account settings on evomi dashboard.
 
-> Not affiliated with or endorsed by Evomi. "Evomi" is used here only to
-> describe what the tool connects to.
+> Not affiliated with or Evomi.
+> Made this for myself, and found it 
 
 ---
 
