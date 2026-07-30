@@ -1,0 +1,20 @@
+# Evomi CLI local config (contains your API key)
+config.json
+.config/
+
+# Generated proxy lists (contain live credentials)
+proxies.txt
+*.proxies.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor cruft
+desktop.ini
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

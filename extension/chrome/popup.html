@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Proxy Switcher</title>
+  </head>
+  <body>
+    <header>
+      <h1>Proxy Switcher</h1>
+      <label class="master">
+        <input type="checkbox" id="masterToggle" />
+        <span>Enabled</span>
+      </label>
+    </header>
+
+    <div id="activeBar" class="active-bar">
+      <span class="active-dot"></span>
+      <span id="activeText" class="active-text">No proxy (direct)</span>
+    </div>
+
+    <section class="add">
+      <label for="proxyInput">Add / connect proxy <span class="hint">(one per line for bulk)</span></label>
+      <textarea
+        id="proxyInput"
+        rows="2"
+        placeholder="user:pass@host:port  ·  host:port:user:pass  ·  socks5://host:port ..."
+      ></textarea>
+      <input type="text" id="labelInput" placeholder="Optional label" />
+      <div class="add-row">
+        <label class="save-check" title="Also store this proxy in the Saved profiles list">
+          <input type="checkbox" id="saveCheck" checked />
+          <span>Save to profiles</span>
+        </label>
+        <div class="add-btns">
+          <button id="saveBtn" class="secondary">Save</button>
+          <button id="connectBtn">Connect</button>
+        </div>
+      </div>
+      <div id="preview" class="preview"></div>
+    </section>
+
+    <details id="evomiPanel" class="evomi">
+      <summary>Generate from Evomi</summary>
+      <div class="evomi-body">
+        <input
+          type="password"
+          id="evomiKey"
+          placeholder="Evomi API key"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div class="evomi-grid">
+          <select id="evomiProduct" title="Product">
+            <option value="rpc">Core Residential</option>
+            <option value="rp">Premium Residential</option>
+            <option value="mp">Mobile</option>
+            <option value="dc">Datacenter</option>
+            <option value="static">Static Residential</option>
+          </select>
+          <select id="evomiSession" title="Session">
+            <option value="sticky">Sticky IP</option>
+            <option value="hard">Rotating</option>
+          </select>
+          <input type="text" id="evomiCountry" placeholder="Country e.g. US" />
+          <input type="text" id="evomiCity" placeholder="City (optional)" />
+          <input
+            type="text"
+            id="evomiLifetime"
+            placeholder="Sticky min"
+            inputmode="numeric"
+          />
+          <input
+            type="text"
+            id="evomiAmount"
+            placeholder="Amount"
+            inputmode="numeric"
+            value="1"
+          />
+        </div>
+        <button id="evomiFetch" class="secondary">Fetch proxy → input</button>
+        <div id="evomiMsg" class="preview"></div>
+      </div>
+    </details>
+
+    <section id="recentSection" class="list-section recent-section">
+      <div class="list-head">
+        <span>Recent</span>
+        <button id="clearRecent" class="link-btn" title="Clear recent list">clear</button>
+      </div>
+      <ul id="recentList" class="proxy-list recent-list"></ul>
+    </section>
+
+    <section class="list-section">
+      <div class="list-head">
+        <span>Saved profiles</span>
+        <span id="count" class="count"></span>
+      </div>
+      <ul id="proxyList" class="proxy-list"></ul>
+      <p id="empty" class="empty">No profiles yet. Paste one above.</p>
+    </section>
+
+    <footer>
+      <button id="directBtn" class="ghost">Use direct (no proxy)</button>
+      <div class="io-row">
+        <button id="importBtn" class="ghost">Import</button>
+        <button id="exportBtn" class="ghost">Export</button>
+      </div>
+      <input type="file" id="importFile" accept=".json,.txt,text/plain,application/json" hidden />
+      <div id="ioMsg" class="io-msg"></div>
+    </footer>
+
+    <template id="itemTemplate">
+      <li class="item">
+        <div class="item-main">
+          <div class="item-label"></div>
+          <div class="item-detail"></div>
+        </div>
+        <div class="item-actions">
+          <button class="use" title="Activate">Use</button>
+          <button class="del" title="Delete">✕</button>
+        </div>
+      </li>
+    </template>
+
+    <template id="recentTemplate">
+      <li class="item recent-item">
+        <div class="item-main">
+          <div class="item-label"></div>
+          <div class="item-detail"></div>
+        </div>
+        <div class="item-actions">
+          <button class="use" title="Activate">Use</button>
+          <button class="save" title="Save as profile">＋</button>
+        </div>
+      </li>
+    </template>
+
+    <script src="parser.js"></script>
+    <script src="evomi.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
