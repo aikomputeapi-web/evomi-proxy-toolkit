@@ -41,6 +41,18 @@ PRODUCTS = {
     "static-residential": "static_residential",
 }
 
+# Evomi `product` value -> key under Get Proxy Data's `products` object.
+# /generate returns a generic host (rp.evomi.com) for every product, so we look
+# up the product's real endpoint + port and substitute it (Core stays on
+# core-residential.evomi.com, Mobile on mp.evomi.com:3000, etc.).
+GPD_KEY = {
+    "rpc": "rpc",
+    "rp": "rp",
+    "mp": "mp",
+    "sdc": "dcp",
+    "static_residential": "static_residential",
+}
+
 CONFIG_PATH = os.path.join(
     os.path.expanduser("~"), ".config", "evomi", "config.json"
 )
@@ -127,6 +139,41 @@ def call_generate(api_key: str, params: dict[str, str]) -> str:
         raise SystemExit(f"Network error reaching Evomi API: {exc.reason}")
 
 
+def fetch_product_endpoint(
+    api_key: str, product: str, protocol: str
+) -> tuple[str, int] | None:
+    """Return (host, port) for a product from Get Proxy Data, or None."""
+    req = urllib.request.Request(
+        API_BASE,
+        headers={
+            "x-apikey": api_key,
+            "User-Agent": "evomi-proxy-gen/1.0",
+            "Accept": "*/*",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    except (urllib.error.URLError, json.JSONDecodeError):
+        return None
+    prod = (data.get("products") or {}).get(GPD_KEY.get(product, product))
+    if not prod or not prod.get("endpoint") or not prod.get("ports"):
+        return None
+    port = prod["ports"].get("socks5" if protocol == "socks5" else "http")
+    if not port:
+        return None
+    return prod["endpoint"], int(port)
+
+
+def apply_product_endpoint(line: str, endpoint: tuple[str, int]) -> str:
+    """Replace host:port in a user:pass:host:port line with the real endpoint."""
+    parts = line.split(":")
+    if len(parts) != 4:
+        return line
+    parts[2], parts[3] = endpoint[0], str(endpoint[1])
+    return ":".join(parts)
+
+
 def extract_api_error(raw: str) -> str:
     """Pull a readable message out of an Evomi JSON error body.
 
@@ -210,6 +257,13 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"(raw response: {raw!r})", file=sys.stderr)
         return 1
 
+    # /generate returns a generic host (rp.evomi.com) for every product; swap in
+    # the product's real endpoint + port unless the user opted out.
+    if not args.raw_host:
+        endpoint = fetch_product_endpoint(api_key, product, args.protocol)
+        if endpoint:
+            lines = [apply_product_endpoint(ln, endpoint) for ln in lines]
+
     if args.resolve_ip:
         lines = [resolve_host_to_ip(ln) for ln in lines]
 
@@ -260,6 +314,12 @@ def add_generate_args(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Resolve the Evomi hostname to a literal IP in the output string "
         "(default keeps the hostname, which is what Evomi recommends)",
+    )
+    p.add_argument(
+        "--raw-host",
+        action="store_true",
+        help="Keep the exact host /generate returns (generic rp.evomi.com) "
+        "instead of substituting the product's real endpoint",
     )
     p.add_argument("--output", "-o", help="Write results to a file instead of stdout")
     p.add_argument("--api-key", help="Evomi API key (overrides env/config)")

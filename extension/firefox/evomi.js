@@ -12,7 +12,8 @@
 (function (root) {
   "use strict";
 
-  var GENERATE_URL = "https://api.evomi.com/public/generate";
+  var API_BASE = "https://api.evomi.com/public";
+  var GENERATE_URL = API_BASE + "/generate";
 
   // UI product value -> Evomi `product` query value.
   var PRODUCT_MAP = {
@@ -22,6 +23,38 @@
     dc: "sdc", // Datacenter (shared)
     static: "static_residential" // Static Residential (ISP)
   };
+
+  // Evomi `product` value -> key under Get Proxy Data's `products` object.
+  // /generate hands back a generic host (rp.evomi.com) regardless of product,
+  // so we look up each product's real endpoint + port and substitute it. This
+  // keeps Core Residential on core-residential.evomi.com, Mobile on its own
+  // host/port (3000), etc. — instead of the shared gateway.
+  var GPD_KEY = {
+    rpc: "rpc",
+    rp: "rp",
+    mp: "mp",
+    sdc: "dcp",
+    static_residential: "static_residential"
+  };
+
+  async function fetchProductEndpoint(apiKey, product, protocol) {
+    try {
+      var resp = await fetch(API_BASE, {
+        method: "GET",
+        headers: { "x-apikey": apiKey, Accept: "*/*" }
+      });
+      if (!resp.ok) return null;
+      var data = await resp.json();
+      var p =
+        data && data.products && data.products[GPD_KEY[product] || product];
+      if (!p || !p.endpoint || !p.ports) return null;
+      var port = protocol === "socks5" ? p.ports.socks5 : p.ports.http;
+      if (!port) return null;
+      return { host: p.endpoint, port: port };
+    } catch (e) {
+      return null; // best-effort; fall back to the generated host
+    }
+  }
 
   // Evomi returns validation failures as a JSON object (a ZodError), not a
   // string, so pull out a human-readable message rather than "[object Object]".
@@ -94,6 +127,21 @@
       })
       .filter(Boolean);
     if (!lines.length) throw new Error("No proxies returned");
+
+    // Swap the generic /generate host:port for this product's real endpoint.
+    var ep = await fetchProductEndpoint(apiKey, product, opts.protocol || "http");
+    if (ep) {
+      lines = lines.map(function (line) {
+        var parts = line.split(":");
+        // user:pass:host:port — replace host + port, keep user:pass intact.
+        if (parts.length === 4) {
+          parts[2] = ep.host;
+          parts[3] = String(ep.port);
+          return parts.join(":");
+        }
+        return line;
+      });
+    }
     return lines;
   }
 
