@@ -24,6 +24,15 @@ Ships as **two builds** from the same shared UI:
 
 ## Usage
 
+The popup has a bold **connection status banner** at the top — bright green
+**CONNECTED** with the active endpoint, or a greyed-out **DIRECT CONNECTION**
+when no proxy is routing — plus three tabs:
+
+- **Paste** — paste a proxy in any format; it parses into editable
+  scheme / host / port / user / pass fields you can tweak before connecting.
+- **Generate** — pull a fresh proxy from your Evomi account (see below).
+- **Saved** — your Recent list and saved profiles, one click to switch.
+
 - **Connect:** paste a proxy string, optionally give it a label, click
   **Connect**. It's parsed, activated immediately, and **automatically added to
   Recent**. If the **Save to profiles** box is ticked (default), it's also

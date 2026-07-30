@@ -10,6 +10,7 @@ const MAX_RECENTS = 10;
 const els = {
   master: document.getElementById("masterToggle"),
   activeBar: document.getElementById("activeBar"),
+  statusLabel: document.getElementById("statusLabel"),
   activeText: document.getElementById("activeText"),
   input: document.getElementById("proxyInput"),
   label: document.getElementById("labelInput"),
@@ -30,6 +31,12 @@ const els = {
   ioMsg: document.getElementById("ioMsg"),
   tpl: document.getElementById("itemTemplate"),
   recentTpl: document.getElementById("recentTemplate"),
+  parsedFields: document.getElementById("parsedFields"),
+  fScheme: document.getElementById("fScheme"),
+  fHost: document.getElementById("fHost"),
+  fPort: document.getElementById("fPort"),
+  fUser: document.getElementById("fUser"),
+  fPass: document.getElementById("fPass"),
   evomiPanel: document.getElementById("evomiPanel"),
   evomiKey: document.getElementById("evomiKey"),
   evomiProduct: document.getElementById("evomiProduct"),
@@ -39,11 +46,17 @@ const els = {
   evomiLifetime: document.getElementById("evomiLifetime"),
   evomiAmount: document.getElementById("evomiAmount"),
   evomiFetch: document.getElementById("evomiFetch"),
-  evomiMsg: document.getElementById("evomiMsg")
+  evomiMsg: document.getElementById("evomiMsg"),
+  tabs: document.getElementById("tabs"),
+  tabCount: document.getElementById("tabCount"),
+  tabBtns: Array.from(document.querySelectorAll(".tab-btn")),
+  tabPanels: Array.from(document.querySelectorAll(".tab-panel"))
 };
 
 const EVOMI_KEY_STORE = "evomiApiKey";
 const EVOMI_OPTS_STORE = "evomiOpts";
+const TAB_STORE = "uiTab";
+const SCHEMES = ["http", "https", "socks5", "socks4"];
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -175,11 +188,60 @@ function entryFromParsed(parsed, label, raw) {
   };
 }
 
+// ---- Parsed editable fields (single-proxy mode) ----
+function showFields(parsed) {
+  els.fScheme.value = SCHEMES.includes(parsed.scheme) ? parsed.scheme : "http";
+  els.fHost.value = parsed.host || "";
+  els.fPort.value = parsed.port || "";
+  els.fUser.value = parsed.username || "";
+  els.fPass.value = parsed.password || "";
+  els.parsedFields.hidden = false;
+}
+
+function hideFields() {
+  els.parsedFields.hidden = true;
+}
+
+function fieldsVisible() {
+  return !els.parsedFields.hidden;
+}
+
+// Build a proxy object from the editable fields; throws if incomplete.
+function proxyFromFields() {
+  const host = els.fHost.value.trim();
+  const port = els.fPort.value.trim();
+  if (!host) throw new Error("Host required");
+  if (!ProxyParser.isPort(port)) throw new Error("Invalid port");
+  return {
+    scheme: els.fScheme.value,
+    host: host,
+    port: parseInt(port, 10),
+    username: els.fUser.value.trim(),
+    password: els.fPass.value
+  };
+}
+
+// A field was edited: mirror the fields back into the textarea (canonical
+// string) and refresh the preview — without re-parsing/re-filling the fields.
+function syncFieldsToInput() {
+  const user = els.fUser.value.trim();
+  const auth = user ? `${user}:${els.fPass.value}@` : "";
+  els.input.value = `${els.fScheme.value}://${auth}${els.fHost.value.trim()}:${els.fPort.value.trim()}`;
+  try {
+    els.preview.textContent = "→ " + proxyToDisplay(proxyFromFields());
+    els.preview.className = "preview ok";
+  } catch (e) {
+    els.preview.textContent = "✕ " + e.message;
+    els.preview.className = "preview err";
+  }
+}
+
 function livePreview() {
   const raw = els.input.value.trim();
   if (!raw) {
     els.preview.textContent = "";
     els.preview.className = "preview";
+    hideFields();
     return;
   }
   const lines = nonEmptyLines(raw);
@@ -197,15 +259,18 @@ function livePreview() {
     els.preview.textContent =
       `${ok} valid` + (bad ? `, ${bad} invalid (skipped)` : "");
     els.preview.className = "preview " + (ok ? "ok" : "err");
+    hideFields();
     return;
   }
   try {
     const parsed = ProxyParser.parseProxyString(lines[0]);
     els.preview.textContent = "→ " + proxyToDisplay(parsed);
     els.preview.className = "preview ok";
+    showFields(parsed);
   } catch (e) {
     els.preview.textContent = "✕ " + e.message;
     els.preview.className = "preview err";
+    hideFields();
   }
 }
 
@@ -214,6 +279,7 @@ function clearInput() {
   els.label.value = "";
   els.preview.textContent = "";
   els.preview.className = "preview";
+  hideFields();
 }
 
 // Parse the given lines and append any new ones to the saved-profiles list.
@@ -477,13 +543,15 @@ async function render() {
   const { proxies, active, recents } = await getState();
   const activeKey = keyOf(active);
 
-  // Active bar + master toggle.
+  // Connection status banner + master toggle.
   els.master.checked = !!active;
   if (active) {
-    els.activeText.textContent = proxyToDisplay(active);
+    els.statusLabel.textContent = "Connected";
+    els.activeText.textContent = labelFor(active) + " · " + proxyToDisplay(active);
     els.activeBar.classList.add("on");
   } else {
-    els.activeText.textContent = "No proxy (direct)";
+    els.statusLabel.textContent = "Direct connection";
+    els.activeText.textContent = "No proxy — traffic is not routed";
     els.activeBar.classList.remove("on");
   }
 
@@ -510,6 +578,7 @@ async function render() {
   // Saved profiles.
   els.list.innerHTML = "";
   els.count.textContent = proxies.length ? `${proxies.length}` : "";
+  els.tabCount.textContent = proxies.length ? `(${proxies.length})` : "";
   els.empty.style.display = proxies.length ? "none" : "block";
   for (const p of proxies) {
     const node = els.tpl.content.firstElementChild.cloneNode(true);
@@ -585,10 +654,9 @@ async function fetchFromEvomi() {
     const lines = await Evomi.fetchEvomiProxies(key, opts);
     els.input.value = lines.join("\n");
     livePreview();
-    evomiMsg(
-      `Got ${lines.length} — hit Connect` + (lines.length > 1 ? " to save all" : ""),
-      "ok"
-    );
+    evomiMsg(`Got ${lines.length} — sent to Paste tab`, "ok");
+    // Surface the result in the Paste tab so Connect / fields are right there.
+    switchTab("paste");
     els.input.focus();
   } catch (e) {
     evomiMsg("✕ " + e.message, "err");
@@ -597,7 +665,27 @@ async function fetchFromEvomi() {
   }
 }
 
+// ---- Tabs ----
+function switchTab(name) {
+  els.tabBtns.forEach((b) =>
+    b.classList.toggle("active", b.dataset.tab === name)
+  );
+  els.tabPanels.forEach((p) => {
+    p.hidden = p.dataset.panel !== name;
+  });
+  api.storage.local.set({ [TAB_STORE]: name });
+}
+
+async function initTab() {
+  const data = await api.storage.local.get(TAB_STORE);
+  const name = data[TAB_STORE] || "paste";
+  if (els.tabBtns.some((b) => b.dataset.tab === name)) switchTab(name);
+}
+
 // ---- Wire up ----
+els.tabBtns.forEach((b) =>
+  b.addEventListener("click", () => switchTab(b.dataset.tab))
+);
 els.evomiFetch.addEventListener("click", fetchFromEvomi);
 els.saveBtn.addEventListener("click", saveProxy);
 els.connectBtn.addEventListener("click", connectProxy);
@@ -605,6 +693,11 @@ els.input.addEventListener("input", livePreview);
 els.input.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") connectProxy();
 });
+// Edits to the parsed fields mirror back into the input + preview.
+[els.fHost, els.fPort, els.fUser, els.fPass].forEach((el) =>
+  el.addEventListener("input", syncFieldsToInput)
+);
+els.fScheme.addEventListener("change", syncFieldsToInput);
 els.master.addEventListener("change", toggleMaster);
 els.directBtn.addEventListener("click", goDirect);
 els.clearRecent.addEventListener("click", clearRecents);
@@ -613,5 +706,6 @@ els.importBtn.addEventListener("click", () => els.importFile.click());
 els.importFile.addEventListener("change", handleImportFile);
 
 render();
+initTab();
 initEvomi();
 wireEvomiDefaults();

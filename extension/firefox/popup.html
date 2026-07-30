@@ -15,150 +15,191 @@
       </label>
     </header>
 
-    <div id="activeBar" class="active-bar">
-      <span class="active-dot"></span>
-      <span id="activeText" class="active-text">No proxy (direct)</span>
+    <div id="activeBar" class="status" role="status" aria-live="polite">
+      <span class="status-dot"></span>
+      <div class="status-main">
+        <span id="statusLabel" class="status-label">Direct connection</span>
+        <span id="activeText" class="status-detail">No proxy — traffic is not routed</span>
+      </div>
     </div>
 
-    <section class="add">
-      <label for="proxyInput">Add / connect proxy <span class="hint">(one per line for bulk)</span></label>
-      <textarea
-        id="proxyInput"
-        rows="2"
-        placeholder="user:pass@host:port  ·  host:port:user:pass  ·  socks5://host:port ..."
-      ></textarea>
-      <input type="text" id="labelInput" placeholder="Optional label" />
-      <div class="add-row">
-        <label class="save-check" title="Also store this proxy in the Saved profiles list">
-          <input type="checkbox" id="saveCheck" checked />
-          <span>Save to profiles</span>
-        </label>
-        <div class="add-btns">
-          <button id="saveBtn" class="secondary">Save</button>
-          <button id="connectBtn">Connect</button>
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="paste">Paste</button>
+      <button class="tab-btn" data-tab="generate">Generate</button>
+      <button class="tab-btn" data-tab="saved">
+        Saved <span id="tabCount" class="tab-count"></span>
+      </button>
+    </nav>
+
+    <!-- Tab: Paste / manual -->
+    <div class="tab-panel" data-panel="paste">
+      <section class="add">
+        <label for="proxyInput">Paste a proxy <span class="hint">(any format · one per line for bulk)</span></label>
+        <textarea
+          id="proxyInput"
+          rows="2"
+          placeholder="user:pass@host:port  ·  host:port:user:pass  ·  socks5://host:port ..."
+        ></textarea>
+        <div id="parsedFields" class="parsed-fields" hidden>
+          <div class="pf-row">
+            <select id="fScheme" title="Scheme">
+              <option value="http">http</option>
+              <option value="https">https</option>
+              <option value="socks5">socks5</option>
+              <option value="socks4">socks4</option>
+            </select>
+            <input type="text" id="fHost" class="pf-host" placeholder="host" />
+            <input
+              type="text"
+              id="fPort"
+              class="pf-port"
+              placeholder="port"
+              inputmode="numeric"
+            />
+          </div>
+          <div class="pf-row">
+            <input type="text" id="fUser" placeholder="username" autocomplete="off" />
+            <input type="text" id="fPass" placeholder="password" autocomplete="off" />
+          </div>
         </div>
-      </div>
-      <div id="preview" class="preview"></div>
-    </section>
-
-    <details id="evomiPanel" class="evomi">
-      <summary>Generate from Evomi</summary>
-      <div class="evomi-body">
-        <input
-          type="password"
-          id="evomiKey"
-          placeholder="Evomi API key"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <div class="evomi-grid">
-          <select id="evomiProduct" title="Product">
-            <option value="rpc">Core Residential</option>
-            <option value="rp">Premium Residential</option>
-            <option value="mp">Mobile</option>
-            <option value="dc">Datacenter</option>
-            <option value="static">Static Residential</option>
-          </select>
-          <select id="evomiSession" title="Session">
-            <option value="sticky">Sticky IP</option>
-            <option value="hard">Rotating</option>
-          </select>
-          <select id="evomiCountry" class="evomi-wide" title="Country">
-            <option value="">Any country</option>
-            <option value="US" selected>United States</option>
-            <option value="GB">United Kingdom</option>
-            <option value="CA">Canada</option>
-            <option value="AU">Australia</option>
-            <option value="DE">Germany</option>
-            <option value="FR">France</option>
-            <option value="NL">Netherlands</option>
-            <option value="ES">Spain</option>
-            <option value="IT">Italy</option>
-            <option value="IE">Ireland</option>
-            <option value="PT">Portugal</option>
-            <option value="BE">Belgium</option>
-            <option value="AT">Austria</option>
-            <option value="CH">Switzerland</option>
-            <option value="SE">Sweden</option>
-            <option value="NO">Norway</option>
-            <option value="DK">Denmark</option>
-            <option value="FI">Finland</option>
-            <option value="PL">Poland</option>
-            <option value="CZ">Czechia</option>
-            <option value="RO">Romania</option>
-            <option value="GR">Greece</option>
-            <option value="UA">Ukraine</option>
-            <option value="RU">Russia</option>
-            <option value="TR">Turkey</option>
-            <option value="IL">Israel</option>
-            <option value="SA">Saudi Arabia</option>
-            <option value="AE">United Arab Emirates</option>
-            <option value="IN">India</option>
-            <option value="JP">Japan</option>
-            <option value="KR">South Korea</option>
-            <option value="CN">China</option>
-            <option value="HK">Hong Kong</option>
-            <option value="TW">Taiwan</option>
-            <option value="SG">Singapore</option>
-            <option value="ID">Indonesia</option>
-            <option value="PH">Philippines</option>
-            <option value="VN">Vietnam</option>
-            <option value="TH">Thailand</option>
-            <option value="MY">Malaysia</option>
-            <option value="BR">Brazil</option>
-            <option value="MX">Mexico</option>
-            <option value="AR">Argentina</option>
-            <option value="CL">Chile</option>
-            <option value="CO">Colombia</option>
-            <option value="ZA">South Africa</option>
-            <option value="EG">Egypt</option>
-            <option value="NG">Nigeria</option>
-            <option value="NZ">New Zealand</option>
-          </select>
-          <input
-            type="text"
-            id="evomiCity"
-            placeholder="City (optional)"
-            data-default=""
-          />
-          <input
-            type="text"
-            id="evomiLifetime"
-            placeholder="Sticky min"
-            inputmode="numeric"
-            value="30"
-            data-default="30"
-          />
-          <input
-            type="text"
-            id="evomiAmount"
-            placeholder="Amount"
-            inputmode="numeric"
-            value="1"
-            data-default="1"
-          />
+        <input type="text" id="labelInput" placeholder="Optional label" />
+        <div class="add-row">
+          <label class="save-check" title="Also store this proxy in the Saved profiles list">
+            <input type="checkbox" id="saveCheck" checked />
+            <span>Save to profiles</span>
+          </label>
+          <div class="add-btns">
+            <button id="saveBtn" class="secondary">Save</button>
+            <button id="connectBtn">Connect</button>
+          </div>
         </div>
-        <button id="evomiFetch" class="secondary">Fetch proxy → input</button>
-        <div id="evomiMsg" class="preview"></div>
-      </div>
-    </details>
+        <div id="preview" class="preview"></div>
+      </section>
+    </div>
 
-    <section id="recentSection" class="list-section recent-section">
-      <div class="list-head">
-        <span>Recent</span>
-        <button id="clearRecent" class="link-btn" title="Clear recent list">clear</button>
-      </div>
-      <ul id="recentList" class="proxy-list recent-list"></ul>
-    </section>
+    <!-- Tab: Generate from Evomi -->
+    <div class="tab-panel" data-panel="generate" hidden>
+      <section id="evomiPanel" class="evomi">
+        <div class="evomi-body">
+          <input
+            type="password"
+            id="evomiKey"
+            placeholder="Evomi API key"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div class="evomi-grid">
+            <select id="evomiProduct" title="Product">
+              <option value="rpc">Core Residential</option>
+              <option value="rp">Premium Residential</option>
+              <option value="mp">Mobile</option>
+              <option value="dc">Datacenter</option>
+              <option value="static">Static Residential</option>
+            </select>
+            <select id="evomiSession" title="Session">
+              <option value="sticky">Sticky IP</option>
+              <option value="hard">Rotating</option>
+            </select>
+            <select id="evomiCountry" class="evomi-wide" title="Country">
+              <option value="">Any country</option>
+              <option value="US" selected>United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="CA">Canada</option>
+              <option value="AU">Australia</option>
+              <option value="DE">Germany</option>
+              <option value="FR">France</option>
+              <option value="NL">Netherlands</option>
+              <option value="ES">Spain</option>
+              <option value="IT">Italy</option>
+              <option value="IE">Ireland</option>
+              <option value="PT">Portugal</option>
+              <option value="BE">Belgium</option>
+              <option value="AT">Austria</option>
+              <option value="CH">Switzerland</option>
+              <option value="SE">Sweden</option>
+              <option value="NO">Norway</option>
+              <option value="DK">Denmark</option>
+              <option value="FI">Finland</option>
+              <option value="PL">Poland</option>
+              <option value="CZ">Czechia</option>
+              <option value="RO">Romania</option>
+              <option value="GR">Greece</option>
+              <option value="UA">Ukraine</option>
+              <option value="RU">Russia</option>
+              <option value="TR">Turkey</option>
+              <option value="IL">Israel</option>
+              <option value="SA">Saudi Arabia</option>
+              <option value="AE">United Arab Emirates</option>
+              <option value="IN">India</option>
+              <option value="JP">Japan</option>
+              <option value="KR">South Korea</option>
+              <option value="CN">China</option>
+              <option value="HK">Hong Kong</option>
+              <option value="TW">Taiwan</option>
+              <option value="SG">Singapore</option>
+              <option value="ID">Indonesia</option>
+              <option value="PH">Philippines</option>
+              <option value="VN">Vietnam</option>
+              <option value="TH">Thailand</option>
+              <option value="MY">Malaysia</option>
+              <option value="BR">Brazil</option>
+              <option value="MX">Mexico</option>
+              <option value="AR">Argentina</option>
+              <option value="CL">Chile</option>
+              <option value="CO">Colombia</option>
+              <option value="ZA">South Africa</option>
+              <option value="EG">Egypt</option>
+              <option value="NG">Nigeria</option>
+              <option value="NZ">New Zealand</option>
+            </select>
+            <input
+              type="text"
+              id="evomiCity"
+              placeholder="City (optional)"
+              data-default=""
+            />
+            <input
+              type="text"
+              id="evomiLifetime"
+              placeholder="Sticky min"
+              inputmode="numeric"
+              value="30"
+              data-default="30"
+            />
+            <input
+              type="text"
+              id="evomiAmount"
+              placeholder="Amount"
+              inputmode="numeric"
+              value="1"
+              data-default="1"
+            />
+          </div>
+          <button id="evomiFetch">Fetch proxy</button>
+          <div id="evomiMsg" class="preview"></div>
+        </div>
+      </section>
+    </div>
 
-    <section class="list-section">
-      <div class="list-head">
-        <span>Saved profiles</span>
-        <span id="count" class="count"></span>
-      </div>
-      <ul id="proxyList" class="proxy-list"></ul>
-      <p id="empty" class="empty">No profiles yet. Paste one above.</p>
-    </section>
+    <!-- Tab: Saved (recent + profiles) -->
+    <div class="tab-panel" data-panel="saved" hidden>
+      <section id="recentSection" class="list-section recent-section">
+        <div class="list-head">
+          <span>Recent</span>
+          <button id="clearRecent" class="link-btn" title="Clear recent list">clear</button>
+        </div>
+        <ul id="recentList" class="proxy-list recent-list"></ul>
+      </section>
+
+      <section class="list-section">
+        <div class="list-head">
+          <span>Saved profiles</span>
+          <span id="count" class="count"></span>
+        </div>
+        <ul id="proxyList" class="proxy-list"></ul>
+        <p id="empty" class="empty">No profiles yet. Add one from the Paste or Generate tab.</p>
+      </section>
+    </div>
 
     <footer>
       <button id="directBtn" class="ghost">Use direct (no proxy)</button>
